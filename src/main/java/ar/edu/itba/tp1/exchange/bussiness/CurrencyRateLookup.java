@@ -7,9 +7,6 @@ import java.util.Set;
 
 public class CurrencyRateLookup {
 
-    private final static int SCALE = 2;
-    private final static RoundingMode ROUNDING_MODE = RoundingMode.HALF_UP;
-
     private final CurrencyRateProvider provider;
 
     public CurrencyRateLookup(CurrencyRateProvider provider) {
@@ -21,6 +18,6 @@ public class CurrencyRateLookup {
     }
 
     public BigDecimal getExchangeRate(Currency fromCurrency, Currency toCurrency) {
-        throw new UnsupportedOperationException("getExchangeRate is not implemented yet");
+        return provider.getExchangeRate(fromCurrency, toCurrency);
     }
 }
