@@ -10,36 +10,44 @@ import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.request.GetRequest;
 
 import ar.edu.itba.tp1.exchange.bussiness.CurrencyRateProvider;
+import ar.edu.itba.tp1.exchange.providers.http.HttpApiResponse;
+import ar.edu.itba.tp1.exchange.providers.http.HttpClient;
+import ar.edu.itba.tp1.exchange.providers.http.UnirestHttpClient;
 
 public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 
-	private static final String LATEST_API_URL = "https://api.freecurrencyapi.com/v1/latest";
-	private static final String CURRENCIES_API_URL = "https://api.freecurrencyapi.com/v1/currencies";
-	private final GetRequest baseGetRequest;
-	private final String apiKey;
+	private static final String API_URL = "https://api.freecurrencyapi.com/v1";
+
+
+	private final HttpClient httpClient;
+	private final Map<String, String> authHeaders;
 
 	public FreeCurrencyRateProvider(final String apiKey) {
-		this.apiKey = apiKey;
-		this.baseGetRequest = Unirest.get(LATEST_API_URL)
-				.header("accept", "application/json")
-				.header("apikey", apiKey);
+		this(apiKey, new UnirestHttpClient());
+	}
+
+	FreeCurrencyRateProvider(final String apiKey, final HttpClient httpClient) {
+		this.httpClient = httpClient;
+		this.authHeaders = Map.of(
+				"accept", "application/json",
+				"apikey", apiKey
+		);
 	}
 
 	@Override
 	public Set<Currency> getSupportedCurrencies() {
-		final var response = callCurrenciesApi();
+		final var response = httpClient.get(API_URL+"/currencies", authHeaders, Map.of());
 		return extractSupportedCurrencies(response);
 	}
 
 	@Override
-    public BigDecimal getExchangeRate(Currency fromCurrency, Currency toCurrency) {
-		final var response = callApi(fromCurrency, toCurrency);
+	public BigDecimal getExchangeRate(Currency fromCurrency, Currency toCurrency) {
+		final var response = httpClient.get(API_URL+"/latest", authHeaders, Map.of(
+				"base_currency", fromCurrency.getCurrencyCode(),
+				"currencies", toCurrency.getCurrencyCode()
+		));
 		return extractExchangeRate(response, toCurrency);
 	}
 
@@ -53,50 +61,12 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		throw new UnsupportedOperationException("getMultipleExchangeRateOnDate is not implemented yet");
 	}
 
-	private HttpResponse<JsonNode> callApi(Currency fromCurrency, Currency toCurrency) {
-        try {
-            final var response = baseGetRequest
-                    .queryString("base_currency", fromCurrency.getCurrencyCode())
-					.queryString("currencies", toCurrency.getCurrencyCode())
-                    .asJson();
-            
-            if (response.getStatus() != 200) {
-                System.err.println("Error: " + response.getStatus());
-                throw new RuntimeException("API call failed with status: " + response.getStatus());
-            }
-            
-            return response;
-        } catch (final Exception e) {
-            System.err.println("Error: " + e.getMessage());
-            throw new RuntimeException("API call failed", e);
-        }
-    }
-
-    private BigDecimal extractExchangeRate(HttpResponse<JsonNode> response, Currency toCurrency) {
-		return new Gson().fromJson(response.getBody().toString(), ExchangeRateResponse.class).getExchange(toCurrency);
-    }
-
-	private HttpResponse<JsonNode> callCurrenciesApi() {
-		try {
-			final var response = Unirest.get(CURRENCIES_API_URL)
-					.header("accept", "application/json")
-					.header("apikey", apiKey)
-					.asJson();
-
-			if (response.getStatus() != 200) {
-				System.err.println("Error: " + response.getStatus());
-				throw new RuntimeException("API call failed with status: " + response.getStatus());
-			}
-
-			return response;
-		} catch (final Exception e) {
-			System.err.println("Error: " + e.getMessage());
-			throw new RuntimeException("API call failed", e);
-		}
+	private BigDecimal extractExchangeRate(HttpApiResponse response, Currency toCurrency) {
+		return new Gson().fromJson(response.body(), ExchangeRateResponse.class).getExchange(toCurrency);
 	}
 
-	private Set<Currency> extractSupportedCurrencies(HttpResponse<JsonNode> response) {
-		return new Gson().fromJson(response.getBody().toString(), CurrenciesResponse.class).getSupportedCurrencies();
+	private Set<Currency> extractSupportedCurrencies(HttpApiResponse response) {
+		return new Gson().fromJson(response.body(), CurrenciesResponse.class).getSupportedCurrencies();
 	}
 
 	private static class ExchangeRateResponse {
