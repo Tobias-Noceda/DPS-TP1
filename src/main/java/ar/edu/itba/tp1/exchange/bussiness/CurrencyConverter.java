@@ -44,7 +44,17 @@ public class CurrencyConverter {
 				.toList();
 	}
 
-	public Collection<ConvertedMoneyAmount> convertMultipleOnDate(MoneyAmount amount, Collection<Currency> toCurrencies, LocalDate date) {
-		throw new UnsupportedOperationException("convertMultipleOnDate is not implemented yet");
+	public Collection<ConvertedMoneyAmount> convertMultipleOnDate(MoneyAmount fromMoney, Set<Currency> toCurrencies, LocalDate date) {
+		final var exchangeRates = currencyRate.getMultipleExchangeRateOnDate(fromMoney.currency(), toCurrencies, date);
+		final var timestamp = date.atStartOfDay();
+
+		return exchangeRates.entrySet().stream()
+				.map(exchangeRate -> new ConvertedMoneyAmount(
+						fromMoney,
+						new MoneyAmount(fromMoney.amount().multiply(exchangeRate.getValue()).setScale(SCALE, ROUNDING_MODE), exchangeRate.getKey()),
+						exchangeRate.getValue(),
+						timestamp
+				))
+				.toList();
 	}
 }

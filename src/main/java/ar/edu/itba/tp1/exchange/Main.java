@@ -17,6 +17,6 @@ public class Main {
         final var toCurrency = Currency.getInstance("USD");
 
         final var result = converter.convert(money, toCurrency);
-        System.out.println("Converted amount: " + result.convertedAmount().amount() + " " + toCurrency.getCurrencyCode());
+        System.out.println("Converted amount: " + result.convertedAmount().amount() + " " + toCurrency.getCurrencyCode() + " using rate: " + result.rate());
     }
 }

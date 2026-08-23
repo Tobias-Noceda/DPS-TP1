@@ -12,7 +12,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.Currency;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +46,7 @@ class CurrencyConverterTest {
 		}
 
 		@Override
-		public Map<Currency, BigDecimal> getMultipleExchangeRateOnDate(Currency fromCurrency, Collection<Currency> toCurrencies, LocalDate date) {
+		public Map<Currency, BigDecimal> getMultipleExchangeRateOnDate(Currency fromCurrency, Set<Currency> toCurrencies, LocalDate date) {
 			return SUPPORTED_CURRENCIES.stream()
 					.filter(toCurrencies::contains)
 					.collect(Collectors.toMap(
@@ -107,7 +106,7 @@ class CurrencyConverterTest {
 		// Then
 		assertThat(results).hasSize(2);
 		assertThat(results.stream().anyMatch(result -> result.convertedAmount().currency().equals(Currency.getInstance("USD")) && result.convertedAmount().amount().equals(BigDecimal.valueOf(115.28)))).isTrue();
-		assertThat(results.stream().anyMatch(result -> result.convertedAmount().currency().equals(Currency.getInstance("JPY")) && result.convertedAmount().amount().equals(BigDecimal.valueOf(100)))).isTrue();
+		assertThat(results.stream().anyMatch(result -> result.convertedAmount().currency().equals(Currency.getInstance("JPY")) && result.convertedAmount().amount().equals(new BigDecimal("100.00")))).isTrue();
 		assertThat(results.stream().allMatch(result -> result.timestamp().toLocalDate().equals(date))).isTrue();
 	}
 

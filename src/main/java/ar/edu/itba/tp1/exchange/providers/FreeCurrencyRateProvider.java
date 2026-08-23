@@ -2,7 +2,6 @@ package ar.edu.itba.tp1.exchange.providers;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.Currency;
 import java.util.Map;
 import java.util.Set;
@@ -61,8 +60,13 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 	}
 
 	@Override
-	public Map<Currency, BigDecimal> getMultipleExchangeRateOnDate(Currency fromCurrency, Collection<Currency> toCurrencies, LocalDate date) {
-		throw new UnsupportedOperationException("getMultipleExchangeRateOnDate is not implemented yet");
+	public Map<Currency, BigDecimal> getMultipleExchangeRateOnDate(Currency fromCurrency, Set<Currency> toCurrencies, LocalDate date) {
+		final var response = httpClient.get(API_URL + "/historical", authHeaders, Map.of(
+				"base_currency", fromCurrency.getCurrencyCode(),
+				"currencies", toCurrencies.stream().map(Currency::getCurrencyCode).collect(Collectors.joining(",")),
+				"date", date.toString()
+		));
+		return extractExchangeRatesOnDate(response, date);
 	}
 
 	private BigDecimal extractExchangeRate(HttpApiResponse response, Currency toCurrency) {
@@ -77,6 +81,10 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		return new Gson().fromJson(response.body(), ExchangeRateResponse.class).getExchanges();
 	}
 
+	private Map<Currency, BigDecimal> extractExchangeRatesOnDate(HttpApiResponse response, LocalDate date) {
+		return new Gson().fromJson(response.body(), HistoricalExchangeRateResponse.class).getExchanges(date);
+	}
+
 	private static class ExchangeRateResponse {
 		private Map<String, Double> data;
 
@@ -86,6 +94,18 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 
 		public Map<Currency, BigDecimal> getExchanges() {
 			return data.entrySet().stream()
+					.collect(Collectors.toMap(
+							entry -> Currency.getInstance(entry.getKey()),
+							entry -> BigDecimal.valueOf(entry.getValue())
+					));
+		}
+	}
+
+	private static class HistoricalExchangeRateResponse {
+		private Map<String, Map<String, Double>> data;
+
+		public Map<Currency, BigDecimal> getExchanges(final LocalDate date) {
+			return data.get(date.toString()).entrySet().stream()
 					.collect(Collectors.toMap(
 							entry -> Currency.getInstance(entry.getKey()),
 							entry -> BigDecimal.valueOf(entry.getValue())
