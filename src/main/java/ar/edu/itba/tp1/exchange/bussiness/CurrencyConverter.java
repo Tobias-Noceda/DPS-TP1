@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Currency;
+import java.util.Set;
 
 import ar.edu.itba.tp1.exchange.bussiness.models.ConvertedMoneyAmount;
 import ar.edu.itba.tp1.exchange.bussiness.models.MoneyAmount;
@@ -29,8 +30,18 @@ public class CurrencyConverter {
 		);
 	}
 
-	public Collection<ConvertedMoneyAmount> convertMultiple(MoneyAmount fromMoney, Collection<Currency> toCurrencies) {
-		throw new UnsupportedOperationException("convertMultiple is not implemented yet");
+	public Collection<ConvertedMoneyAmount> convertMultiple(MoneyAmount fromMoney, Set<Currency> toCurrencies) {
+		final var exchangeRates = currencyRate.getMultipleExchangeRate(fromMoney.currency(), toCurrencies);
+		final var timestamp = LocalDateTime.now();
+
+		return exchangeRates.entrySet().stream()
+				.map(exchangeRate -> new ConvertedMoneyAmount(
+						fromMoney,
+						new MoneyAmount(fromMoney.amount().multiply(exchangeRate.getValue()).setScale(SCALE, ROUNDING_MODE), exchangeRate.getKey()),
+						exchangeRate.getValue(),
+						timestamp
+				))
+				.toList();
 	}
 
 	public Collection<ConvertedMoneyAmount> convertMultipleOnDate(MoneyAmount amount, Collection<Currency> toCurrencies, LocalDate date) {

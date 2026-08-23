@@ -10,6 +10,6 @@ import java.util.Set;
 public interface CurrencyRateProvider {
     Set<Currency> getSupportedCurrencies();
     BigDecimal getExchangeRate(Currency fromCurrency, Currency toCurrency);
-    Map<Currency, BigDecimal> getExchangeRates(Currency fromCurrency, Collection<Currency> toCurrencies);
+    Map<Currency, BigDecimal> getMultipleExchangeRate(Currency fromCurrency, Set<Currency> toCurrencies);
     Map<Currency, BigDecimal> getMultipleExchangeRateOnDate(Currency fromCurrency, Collection<Currency> toCurrencies, LocalDate date);
 }

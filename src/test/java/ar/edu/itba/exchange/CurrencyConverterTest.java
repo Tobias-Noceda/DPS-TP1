@@ -37,7 +37,7 @@ class CurrencyConverterTest {
 		}
 
 		@Override
-		public Map<Currency, BigDecimal> getExchangeRates(Currency fromCurrency, Collection<Currency> toCurrencies) {
+		public Map<Currency, BigDecimal> getMultipleExchangeRate(Currency fromCurrency, Set<Currency> toCurrencies) {
 			return SUPPORTED_CURRENCIES.stream()
 					.filter(toCurrencies::contains)
 					.collect(Collectors.toMap(
@@ -91,7 +91,7 @@ class CurrencyConverterTest {
 		// Then
 		assertThat(results).hasSize(2);
 		assertThat(results.stream().anyMatch(result -> result.convertedAmount().currency().equals(Currency.getInstance("USD")) && result.convertedAmount().amount().equals(BigDecimal.valueOf(115.28)))).isTrue();
-		assertThat(results.stream().anyMatch(result -> result.convertedAmount().currency().equals(Currency.getInstance("JPY")) && result.convertedAmount().amount().equals(BigDecimal.valueOf(100)))).isTrue();
+		assertThat(results.stream().anyMatch(result -> result.convertedAmount().currency().equals(Currency.getInstance("JPY")) && result.convertedAmount().amount().equals(new BigDecimal("100.00")))).isTrue();
 	}
 
 	@Test

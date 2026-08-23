@@ -52,8 +52,12 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 	}
 
 	@Override
-	public Map<Currency, BigDecimal> getExchangeRates(Currency fromCurrency, Collection<Currency> toCurrencies) {
-		throw new UnsupportedOperationException("getExchangeRates is not implemented yet");
+	public Map<Currency, BigDecimal> getMultipleExchangeRate(Currency fromCurrency, Set<Currency> toCurrencies) {
+		final var response = httpClient.get(API_URL + "/latest", authHeaders, Map.of(
+				"base_currency", fromCurrency.getCurrencyCode(),
+				"currencies", toCurrencies.stream().map(Currency::getCurrencyCode).collect(Collectors.joining(","))
+		));
+		return extractExchangeRates(response);
 	}
 
 	@Override
@@ -69,11 +73,23 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		return new Gson().fromJson(response.body(), CurrenciesResponse.class).getSupportedCurrencies();
 	}
 
+	private Map<Currency, BigDecimal> extractExchangeRates(HttpApiResponse response) {
+		return new Gson().fromJson(response.body(), ExchangeRateResponse.class).getExchanges();
+	}
+
 	private static class ExchangeRateResponse {
 		private Map<String, Double> data;
 
 		public BigDecimal getExchange(final Currency toCurrency) {
 			return BigDecimal.valueOf(this.data.get(toCurrency.getCurrencyCode()));
+		}
+
+		public Map<Currency, BigDecimal> getExchanges() {
+			return data.entrySet().stream()
+					.collect(Collectors.toMap(
+							entry -> Currency.getInstance(entry.getKey()),
+							entry -> BigDecimal.valueOf(entry.getValue())
+					));
 		}
 	}
 
