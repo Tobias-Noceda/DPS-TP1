@@ -23,6 +23,7 @@
         <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <wiremock-jetty12.version>3.13.2</wiremock-jetty12.version>
+        <exec-maven-plugin.version>3.6.1</exec-maven-plugin.version>
     </properties>
 
     <repositories>
@@ -104,6 +105,14 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec-maven-plugin.version}</version>
+                <configuration>
+                    <mainClass>ar.edu.itba.tp1.exchange.Main</mainClass>
+                </configuration>
             </plugin>
         </plugins>
         <pluginManagement>
