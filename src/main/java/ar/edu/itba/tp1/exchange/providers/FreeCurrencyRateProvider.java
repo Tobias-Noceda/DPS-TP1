@@ -14,6 +14,7 @@ import ar.edu.itba.tp1.exchange.bussiness.CurrencyRateProvider;
 import ar.edu.itba.tp1.exchange.providers.http.HttpApiResponse;
 import ar.edu.itba.tp1.exchange.providers.http.HttpClient;
 import ar.edu.itba.tp1.exchange.providers.http.UnirestHttpClient;
+import ar.edu.itba.tp1.exchange.providers.http.exceptions.CurrencyApiMissingDataException;
 
 public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 
@@ -56,7 +57,9 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 				"base_currency", fromCurrency.getCurrencyCode(),
 				"currencies", toCurrencies.stream().map(Currency::getCurrencyCode).collect(Collectors.joining(","))
 		));
-		return extractExchangeRates(response);
+		final var exchangeRates = extractExchangeRates(response);
+		requireRatesFor(toCurrencies, exchangeRates);
+		return exchangeRates;
 	}
 
 	@Override
@@ -66,7 +69,9 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 				"currencies", toCurrencies.stream().map(Currency::getCurrencyCode).collect(Collectors.joining(",")),
 				"date", date.toString()
 		));
-		return extractExchangeRatesOnDate(response, date);
+		final var exchangeRates = extractExchangeRatesOnDate(response, date);
+		requireRatesFor(toCurrencies, exchangeRates);
+		return exchangeRates;
 	}
 
 	private BigDecimal extractExchangeRate(HttpApiResponse response, Currency toCurrency) {
@@ -85,14 +90,29 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		return new Gson().fromJson(response.body(), HistoricalExchangeRateResponse.class).getExchanges(date);
 	}
 
+	private void requireRatesFor(Set<Currency> requestedCurrencies, Map<Currency, BigDecimal> exchangeRates) {
+		final var missingCurrencies = requestedCurrencies.stream()
+				.filter(currency -> !exchangeRates.containsKey(currency))
+				.toList();
+		if (!missingCurrencies.isEmpty()) {
+			throw CurrencyApiMissingDataException.forCurrencies(missingCurrencies);
+		}
+	}
+
 	private static class ExchangeRateResponse {
 		private Map<String, Double> data;
 
 		public BigDecimal getExchange(final Currency toCurrency) {
-			return BigDecimal.valueOf(this.data.get(toCurrency.getCurrencyCode()));
+			if (data == null || !data.containsKey(toCurrency.getCurrencyCode())) {
+				throw CurrencyApiMissingDataException.forCurrency(toCurrency);
+			}
+			return BigDecimal.valueOf(data.get(toCurrency.getCurrencyCode()));
 		}
 
 		public Map<Currency, BigDecimal> getExchanges() {
+			if (data == null) {
+				return Map.of();
+			}
 			return data.entrySet().stream()
 					.collect(Collectors.toMap(
 							entry -> Currency.getInstance(entry.getKey()),
@@ -105,6 +125,9 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		private Map<String, Map<String, Double>> data;
 
 		public Map<Currency, BigDecimal> getExchanges(final LocalDate date) {
+			if (data == null || !data.containsKey(date.toString())) {
+				throw CurrencyApiMissingDataException.forDate(date);
+			}
 			return data.get(date.toString()).entrySet().stream()
 					.collect(Collectors.toMap(
 							entry -> Currency.getInstance(entry.getKey()),
@@ -117,6 +140,9 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		private Map<String, JsonObject> data;
 
 		public Set<Currency> getSupportedCurrencies() {
+			if (data == null) {
+				throw CurrencyApiMissingDataException.forSupportedCurrencies();
+			}
 			return data.keySet().stream()
 					.map(Currency::getInstance)
 					.collect(Collectors.toSet());
