@@ -11,7 +11,9 @@ public interface CurrencyRateProvider {
 
     Set<Currency> getSupportedCurrencies();
 
-    List<ExchangeRate> getExchangeRates(Currency fromCurrency, Set<Currency> toCurrencies);
+    ExchangeRate getExchangeRate(Currency fromCurrency, Currency toCurrency);
 
-    List<ExchangeRate> getExchangeRatesOnDate(Currency fromCurrency, Set<Currency> toCurrencies, LocalDate date);
+    List<ExchangeRate> getMultipleExchangeRate(Currency fromCurrency, Set<Currency> toCurrencies);
+
+    List<ExchangeRate> getMultipleExchangeRateOnDate(Currency fromCurrency, Set<Currency> toCurrencies, LocalDate date);
 }

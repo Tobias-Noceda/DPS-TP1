@@ -62,19 +62,8 @@ class CurrencyConverterTest {
     }
 
     @Test
-    void testGetExchangeRateReturnsTheRateBetweenTwoCurrencies() {
-        when(this.rateProvider.getExchangeRates(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
-
-        final var exchangeRate = this.converter.getExchangeRate(EUR, USD);
-
-        assertThat(exchangeRate.fromCurrency()).isEqualTo(EUR);
-        assertThat(exchangeRate.toCurrency()).isEqualTo(USD);
-        assertThat(exchangeRate.rate()).isEqualByComparingTo("1.1528");
-    }
-
-    @Test
     void testConvertReturnsTheConvertedAmount() {
-        when(this.rateProvider.getExchangeRates(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
+        when(this.rateProvider.getMultipleExchangeRate(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
 
         final var result = this.converter.convert(ONE_HUNDRED_EUROS, USD);
 
@@ -85,7 +74,7 @@ class CurrencyConverterTest {
 
     @Test
     void testConvertCarriesTheExchangeRateThatWasUsed() {
-        when(this.rateProvider.getExchangeRates(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
+        when(this.rateProvider.getMultipleExchangeRate(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
 
         final var result = this.converter.convert(ONE_HUNDRED_EUROS, USD);
 
@@ -94,7 +83,7 @@ class CurrencyConverterTest {
 
     @Test
     void testConvertCarriesTheMomentTheRateWasRetrieved() {
-        when(this.rateProvider.getExchangeRates(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
+        when(this.rateProvider.getMultipleExchangeRate(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
 
         final var result = this.converter.convert(ONE_HUNDRED_EUROS, USD);
 
@@ -103,7 +92,7 @@ class CurrencyConverterTest {
 
     @Test
     void testConvertMultipleConvertsToEveryRequestedCurrency() {
-        when(this.rateProvider.getExchangeRates(eq(EUR), any()))
+        when(this.rateProvider.getMultipleExchangeRate(eq(EUR), any()))
                 .thenReturn(List.of(EUR_TO_USD, EUR_TO_JPY));
 
         final var results = this.converter.convertMultiple(ONE_HUNDRED_EUROS, Set.of(USD, JPY));
@@ -115,17 +104,17 @@ class CurrencyConverterTest {
 
     @Test
     void testConvertMultipleUsesASingleRequest() {
-        when(this.rateProvider.getExchangeRates(eq(EUR), any()))
+        when(this.rateProvider.getMultipleExchangeRate(eq(EUR), any()))
                 .thenReturn(List.of(EUR_TO_USD, EUR_TO_JPY));
 
         this.converter.convertMultiple(ONE_HUNDRED_EUROS, Set.of(USD, JPY));
 
-        verify(this.rateProvider, times(1)).getExchangeRates(any(), any());
+        verify(this.rateProvider, times(1)).getMultipleExchangeRate(any(), any());
     }
 
     @Test
     void testEveryResultOfTheSameRequestSharesTheSameTimestamp() {
-        when(this.rateProvider.getExchangeRates(eq(EUR), any()))
+        when(this.rateProvider.getMultipleExchangeRate(eq(EUR), any()))
                 .thenReturn(List.of(EUR_TO_USD, EUR_TO_JPY));
 
         final var results = this.converter.convertMultiple(ONE_HUNDRED_EUROS, Set.of(USD, JPY));
@@ -135,7 +124,7 @@ class CurrencyConverterTest {
 
     @Test
     void testConvertMultipleOnDateUsesTheRatesOfThatDate() {
-        when(this.rateProvider.getExchangeRatesOnDate(eq(EUR), any(), eq(A_PAST_DATE)))
+        when(this.rateProvider.getMultipleExchangeRateOnDate(eq(EUR), any(), eq(A_PAST_DATE)))
                 .thenReturn(List.of(EUR_TO_USD));
 
         final var results = this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), A_PAST_DATE.atStartOfDay());
@@ -148,7 +137,7 @@ class CurrencyConverterTest {
 
     @Test
     void testTodayIsAValidDateForAHistoricalLookup() {
-        when(this.rateProvider.getExchangeRatesOnDate(eq(EUR), any(), eq(TODAY)))
+        when(this.rateProvider.getMultipleExchangeRateOnDate(eq(EUR), any(), eq(TODAY)))
                 .thenReturn(List.of(EUR_TO_USD));
 
         assertThat(this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), TODAY.atStartOfDay())).hasSize(1);
@@ -159,7 +148,7 @@ class CurrencyConverterTest {
         assertThatIllegalArgumentException().isThrownBy(
                 () -> this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), TODAY.plusDays(1).atStartOfDay()));
 
-        verify(this.rateProvider, never()).getExchangeRatesOnDate(any(), any(), any());
+        verify(this.rateProvider, never()).getMultipleExchangeRateOnDate(any(), any(), any());
     }
 
     @Test

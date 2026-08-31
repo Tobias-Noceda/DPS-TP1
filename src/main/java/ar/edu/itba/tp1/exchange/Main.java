@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import ar.edu.itba.tp1.exchange.business.CurrencyConverter;
+import ar.edu.itba.tp1.exchange.business.CurrencyRateProvider;
 import ar.edu.itba.tp1.exchange.business.models.HistoricalConversionResult;
 import ar.edu.itba.tp1.exchange.business.models.MoneyAmount;
 import ar.edu.itba.tp1.exchange.providers.FreeCurrencyRateProvider;
@@ -20,9 +21,6 @@ import ar.edu.itba.tp1.exchange.providers.http.exceptions.CurrencyApiResponseExc
 
 /**
  * Punto de entrada. Se usa desde la linea de comandos, ver USAGE.
- *
- * Es lo unico que sabe que existe FreeCurrencyRateProvider: arma el grafo de
- * objetos y se lo entrega al negocio.
  */
 public class Main {
 
@@ -50,7 +48,7 @@ public class Main {
         try {
             switch (args.length == 0 ? "" : args[0]) {
                 case "currencies" -> printCurrencies(rateProvider.getSupportedCurrencies());
-                case "rate" -> printRate(converter, args);
+                case "rate" -> printRate(rateProvider, args);
                 case "convert" -> printConversions(converter, args);
                 default -> System.out.print(USAGE);
             }
@@ -77,9 +75,9 @@ public class Main {
         System.out.println("(" + currencies.size() + " monedas soportadas)");
     }
 
-    private static void printRate(final CurrencyConverter converter, final String[] args) {
+    private static void printRate(final CurrencyRateProvider rateProvider, final String[] args) {
         requireArguments(args, 3);
-        final var exchangeRate = converter.getExchangeRate(currency(args[1]), currency(args[2]));
+        final var exchangeRate = rateProvider.getExchangeRate(currency(args[1]), currency(args[2]));
 
         System.out.println("1 " + exchangeRate.fromCurrency().getCurrencyCode()
                 + " = " + exchangeRate.rate().toPlainString()

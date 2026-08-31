@@ -6,7 +6,6 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Set;
 
-import ar.edu.itba.tp1.exchange.business.models.ExchangeRate;
 import ar.edu.itba.tp1.exchange.business.models.HistoricalConversionResult;
 import ar.edu.itba.tp1.exchange.business.models.MoneyAmount;
 
@@ -23,17 +22,13 @@ public class CurrencyConverter {
 		this.clock = clock;
 	}
 
-	public ExchangeRate getExchangeRate(final Currency fromCurrency, final Currency toCurrency) {
-		return this.rateProvider.getExchangeRates(fromCurrency, Set.of(toCurrency)).getFirst();
-	}
-
 	public HistoricalConversionResult convert(final MoneyAmount fromMoney, final Currency toCurrency) {
 		return this.convertMultiple(fromMoney, Set.of(toCurrency)).getFirst();
 	}
 
 	public List<HistoricalConversionResult> convertMultiple(final MoneyAmount fromMoney, final Set<Currency> toCurrencies) {
 		final var timestamp = LocalDateTime.now(this.clock);
-		return this.rateProvider.getExchangeRates(fromMoney.currency(), toCurrencies).stream()
+		return this.rateProvider.getMultipleExchangeRate(fromMoney.currency(), toCurrencies).stream()
 				.map(exchangeRate -> new HistoricalConversionResult(
 						fromMoney,
 						fromMoney.convertTo(exchangeRate),
@@ -45,7 +40,7 @@ public class CurrencyConverter {
 	public List<HistoricalConversionResult> convertMultipleOnDate(final MoneyAmount fromMoney,
 	                                                              final Set<Currency> toCurrencies, final LocalDateTime dateTime) {
 		this.requireNotInTheFuture(dateTime);
-		return this.rateProvider.getExchangeRatesOnDate(fromMoney.currency(), toCurrencies, dateTime.toLocalDate()).stream()
+		return this.rateProvider.getMultipleExchangeRateOnDate(fromMoney.currency(), toCurrencies, dateTime.toLocalDate()).stream()
 				.map(exchangeRate -> new HistoricalConversionResult(
 						fromMoney,
 						fromMoney.convertTo(exchangeRate),

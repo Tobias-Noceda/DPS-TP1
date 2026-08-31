@@ -11,6 +11,10 @@ public class CurrencyApiMissingDataException extends CurrencyApiException {
         super("Currency exchange API did not return " + missingData);
     }
 
+    public static CurrencyApiMissingDataException forCurrency(Currency currency) {
+        return new CurrencyApiMissingDataException("a rate for " + currency.getCurrencyCode());
+    }
+
     public static CurrencyApiMissingDataException forCurrencies(Collection<Currency> currencies) {
         return new CurrencyApiMissingDataException("rates for " + codesOf(currencies));
     }

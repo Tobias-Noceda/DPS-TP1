@@ -38,10 +38,52 @@ class FreeCurrencyRateProviderTest {
 	}
 
 	@Test
-	void testGetExchangeRatesReturnsOneExchangeRatePerCurrency() {
+	void testGetExchangeRateReturnsTheRateForASingleCurrency() {
+		final var provider = providerReturning("{\"data\":{\"EUR\":0.8543}}");
+
+		final var exchangeRate = provider.getExchangeRate(USD, EUR);
+
+		assertThat(exchangeRate.fromCurrency()).isEqualTo(USD);
+		assertThat(exchangeRate.toCurrency()).isEqualTo(EUR);
+		assertThat(exchangeRate.rate()).isEqualByComparingTo("0.8543");
+	}
+
+	@Test
+	void testGetExchangeRateThrowsMissingDataWhenTheCurrencyIsNotReturned() {
+		final var provider = providerReturning("{\"data\":{}}");
+
+		assertThatThrownBy(() -> provider.getExchangeRate(USD, EUR))
+				.isInstanceOf(CurrencyApiMissingDataException.class)
+				.hasMessageContaining("EUR");
+	}
+
+	@Test
+	void testGetExchangeRateReturnsOnlyTheRequestedCurrencyWhenTheResponseHasMore() {
+		final var provider = providerReturning("{\"data\":{\"EUR\":0.8543,\"GBP\":0.7912}}");
+
+		final var exchangeRate = provider.getExchangeRate(USD, EUR);
+
+		assertThat(exchangeRate.toCurrency()).isEqualTo(EUR);
+		assertThat(exchangeRate.rate()).isEqualByComparingTo("0.8543");
+	}
+
+	@Test
+	void testGetExchangeRateRequestsOnlyThatCurrencyCode() {
+		final var recordingClient = new RecordingHttpClient("{\"data\":{\"EUR\":0.8543}}");
+		final var provider = new FreeCurrencyRateProvider("test-key", recordingClient);
+
+		provider.getExchangeRate(USD, EUR);
+
+		assertThat(recordingClient.url).endsWith("/latest");
+		assertThat(recordingClient.queryParams).containsEntry("base_currency", "USD");
+		assertThat(recordingClient.queryParams).containsEntry("currencies", "EUR");
+	}
+
+	@Test
+	void testGetMultipleExchangeRateReturnsOneExchangeRatePerCurrency() {
 		final var provider = providerReturning("{\"data\":{\"EUR\":0.8543,\"JPY\":154.2}}");
 
-		final var exchangeRates = provider.getExchangeRates(USD, Set.of(EUR, JPY));
+		final var exchangeRates = provider.getMultipleExchangeRate(USD, Set.of(EUR, JPY));
 
 		assertThat(exchangeRates).hasSize(2);
 		assertThat(rateFor(exchangeRates, EUR)).isEqualByComparingTo("0.8543");
@@ -50,62 +92,62 @@ class FreeCurrencyRateProviderTest {
 	}
 
 	@Test
-	void testGetExchangeRatesDoesNotLosePrecision() {
+	void testGetMultipleExchangeRateDoesNotLosePrecision() {
 		final var provider = providerReturning("{\"data\":{\"EUR\":0.123456789}}");
 
-		assertThat(rateFor(provider.getExchangeRates(USD, Set.of(EUR)), EUR))
+		assertThat(rateFor(provider.getMultipleExchangeRate(USD, Set.of(EUR)), EUR))
 				.isEqualByComparingTo("0.123456789");
 	}
 
 	@Test
-	void testGetExchangeRatesThrowsMissingDataWhenACurrencyIsNotReturned() {
+	void testGetMultipleExchangeRateThrowsMissingDataWhenACurrencyIsNotReturned() {
 		final var provider = providerReturning("{\"data\":{\"EUR\":0.8543}}");
 
-		assertThatThrownBy(() -> provider.getExchangeRates(USD, Set.of(EUR, JPY)))
+		assertThatThrownBy(() -> provider.getMultipleExchangeRate(USD, Set.of(EUR, JPY)))
 				.isInstanceOf(CurrencyApiMissingDataException.class)
 				.hasMessageContaining("JPY");
 	}
 
 	@Test
-	void testGetExchangeRatesThrowsMissingDataWhenTheResponseHasNoDataAtAll() {
+	void testGetMultipleExchangeRateThrowsMissingDataWhenTheResponseHasNoDataAtAll() {
 		final var provider = providerReturning("{}");
 
-		assertThatThrownBy(() -> provider.getExchangeRates(USD, Set.of(EUR)))
+		assertThatThrownBy(() -> provider.getMultipleExchangeRate(USD, Set.of(EUR)))
 				.isInstanceOf(CurrencyApiMissingDataException.class);
 	}
 
 	@Test
-	void testGetExchangeRatesOnDateReturnsTheRatesOfThatDate() {
+	void testGetMultipleExchangeRateOnDateReturnsTheRatesOfThatDate() {
 		final var provider = providerReturning("{\"data\":{\"2024-11-20\":{\"EUR\":0.9480,\"JPY\":155.27}}}");
 
-		final var exchangeRates = provider.getExchangeRatesOnDate(USD, Set.of(EUR, JPY), DATE);
+		final var exchangeRates = provider.getMultipleExchangeRateOnDate(USD, Set.of(EUR, JPY), DATE);
 
 		assertThat(exchangeRates).hasSize(2);
 		assertThat(rateFor(exchangeRates, EUR)).isEqualByComparingTo("0.9480");
 	}
 
 	@Test
-	void testGetExchangeRatesOnDateThrowsMissingDataWhenThereAreNoRatesForThatDate() {
+	void testGetMultipleExchangeRateOnDateThrowsMissingDataWhenThereAreNoRatesForThatDate() {
 		final var provider = providerReturning("{\"data\":{}}");
 
-		assertThatThrownBy(() -> provider.getExchangeRatesOnDate(USD, Set.of(EUR), DATE))
+		assertThatThrownBy(() -> provider.getMultipleExchangeRateOnDate(USD, Set.of(EUR), DATE))
 				.isInstanceOf(CurrencyApiMissingDataException.class)
 				.hasMessage("Currency exchange API did not return rates for 2024-11-20");
 	}
 
 	@Test
-	void testGetExchangeRatesOnDateThrowsMissingDataWhenTheResponseHasNoDataAtAll() {
+	void testGetMultipleExchangeRateOnDateThrowsMissingDataWhenTheResponseHasNoDataAtAll() {
 		final var provider = providerReturning("{}");
 
-		assertThatThrownBy(() -> provider.getExchangeRatesOnDate(USD, Set.of(EUR), DATE))
+		assertThatThrownBy(() -> provider.getMultipleExchangeRateOnDate(USD, Set.of(EUR), DATE))
 				.isInstanceOf(CurrencyApiMissingDataException.class);
 	}
 
 	@Test
-	void testGetExchangeRatesOnDateThrowsMissingDataWhenACurrencyIsNotReturned() {
+	void testGetMultipleExchangeRateOnDateThrowsMissingDataWhenACurrencyIsNotReturned() {
 		final var provider = providerReturning("{\"data\":{\"2024-11-20\":{\"EUR\":0.9480}}}");
 
-		assertThatThrownBy(() -> provider.getExchangeRatesOnDate(USD, Set.of(EUR, JPY), DATE))
+		assertThatThrownBy(() -> provider.getMultipleExchangeRateOnDate(USD, Set.of(EUR, JPY), DATE))
 				.isInstanceOf(CurrencyApiMissingDataException.class)
 				.hasMessageContaining("JPY");
 	}
@@ -115,7 +157,7 @@ class FreeCurrencyRateProviderTest {
 		final var recordingClient = new RecordingHttpClient("{\"data\":{\"EUR\":0.8543}}");
 		final var provider = new FreeCurrencyRateProvider("test-key", recordingClient);
 
-		provider.getExchangeRates(USD, Set.of(EUR));
+		provider.getMultipleExchangeRate(USD, Set.of(EUR));
 
 		assertThat(recordingClient.url).endsWith("/latest");
 		assertThat(recordingClient.headers).containsEntry("apikey", "test-key");

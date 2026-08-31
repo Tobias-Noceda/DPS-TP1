@@ -45,19 +45,23 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 	}
 
 	@Override
-	public List<ExchangeRate> getExchangeRates(final Currency fromCurrency, final Set<Currency> toCurrencies) {
-		final var response = httpClient.get(API_URL + "/latest", authHeaders, Map.of(
-				"base_currency", fromCurrency.getCurrencyCode(),
-				"currencies", codesOf(toCurrencies)
-		));
-		final var exchangeRates = toExchangeRates(fromCurrency, ratesOf(response));
+	public ExchangeRate getExchangeRate(final Currency fromCurrency, final Currency toCurrency) {
+		return fetchLatestExchangeRates(fromCurrency, toCurrency.getCurrencyCode()).stream()
+				.filter(exchangeRate -> exchangeRate.toCurrency().equals(toCurrency))
+				.findFirst()
+				.orElseThrow(() -> CurrencyApiMissingDataException.forCurrency(toCurrency));
+	}
+
+	@Override
+	public List<ExchangeRate> getMultipleExchangeRate(final Currency fromCurrency, final Set<Currency> toCurrencies) {
+		final var exchangeRates = fetchLatestExchangeRates(fromCurrency, codesOf(toCurrencies));
 		requireRatesFor(toCurrencies, exchangeRates);
 		return exchangeRates;
 	}
 
 	@Override
-	public List<ExchangeRate> getExchangeRatesOnDate(final Currency fromCurrency, final Set<Currency> toCurrencies,
-	                                                 final LocalDate date) {
+	public List<ExchangeRate> getMultipleExchangeRateOnDate(final Currency fromCurrency, final Set<Currency> toCurrencies,
+	                                                        final LocalDate date) {
 		final var response = httpClient.get(API_URL + "/historical", authHeaders, Map.of(
 				"base_currency", fromCurrency.getCurrencyCode(),
 				"currencies", codesOf(toCurrencies),
@@ -66,6 +70,14 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 		final var exchangeRates = toExchangeRates(fromCurrency, ratesOnDateOf(response, date));
 		requireRatesFor(toCurrencies, exchangeRates);
 		return exchangeRates;
+	}
+
+	private List<ExchangeRate> fetchLatestExchangeRates(final Currency fromCurrency, final String currencyCodes) {
+		final var response = httpClient.get(API_URL + "/latest", authHeaders, Map.of(
+				"base_currency", fromCurrency.getCurrencyCode(),
+				"currencies", currencyCodes
+		));
+		return toExchangeRates(fromCurrency, ratesOf(response));
 	}
 
 	private Map<String, BigDecimal> ratesOf(final HttpApiResponse response) {
