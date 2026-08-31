@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import ar.edu.itba.tp1.exchange.business.CurrencyConverter;
-import ar.edu.itba.tp1.exchange.business.models.ConvertedMoneyAmount;
 import ar.edu.itba.tp1.exchange.business.models.HistoricalConversionResult;
 import ar.edu.itba.tp1.exchange.business.models.MoneyAmount;
 import ar.edu.itba.tp1.exchange.providers.FreeCurrencyRateProvider;
@@ -50,7 +49,7 @@ public class Main {
 
         try {
             switch (args.length == 0 ? "" : args[0]) {
-                case "currencies" -> printCurrencies(converter.getSupportedCurrencies());
+                case "currencies" -> printCurrencies(rateProvider.getSupportedCurrencies());
                 case "rate" -> printRate(converter, args);
                 case "convert" -> printConversions(converter, args);
                 default -> System.out.print(USAGE);
@@ -93,7 +92,7 @@ public class Main {
         final var toCurrencies = currencies(args[3]);
 
         if (args.length > 4) {
-            converter.convertMultipleOnDate(fromMoney, toCurrencies, date(args[4])).stream()
+            converter.convertMultipleOnDate(fromMoney, toCurrencies, date(args[4]).atStartOfDay()).stream()
                     .sorted(Comparator.comparing(conversion -> conversion.exchangeRate().toCurrency().getCurrencyCode()))
                     .forEach(Main::printHistoricalConversion);
         } else {
@@ -103,7 +102,7 @@ public class Main {
         }
     }
 
-    private static void printConversion(final ConvertedMoneyAmount conversion) {
+    private static void printConversion(final HistoricalConversionResult conversion) {
         System.out.println("%s -> %s (cotizacion: %s, obtenida el %s)".formatted(
                 format(conversion.originalAmount()),
                 format(conversion.convertedAmount()),
@@ -117,7 +116,7 @@ public class Main {
                 format(conversion.originalAmount()),
                 format(conversion.convertedAmount()),
                 conversion.exchangeRate().rate().toPlainString(),
-                conversion.date()
+                conversion.timestamp().toLocalDate()
         ));
     }
 

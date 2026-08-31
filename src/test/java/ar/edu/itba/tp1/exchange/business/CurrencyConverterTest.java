@@ -61,17 +61,6 @@ class CurrencyConverterTest {
                 .isThrownBy(() -> new CurrencyConverter(this.rateProvider, null));
     }
 
-    // ---------- Requerimiento 1 ----------
-
-    @Test
-    void testGetSupportedCurrenciesReturnsTheCurrenciesOfTheProvider() {
-        when(this.rateProvider.getSupportedCurrencies()).thenReturn(Set.of(EUR, USD, JPY));
-
-        assertThat(this.converter.getSupportedCurrencies()).containsExactlyInAnyOrder(EUR, USD, JPY);
-    }
-
-    // ---------- Requerimiento 3 ----------
-
     @Test
     void testGetExchangeRateReturnsTheRateBetweenTwoCurrencies() {
         when(this.rateProvider.getExchangeRates(EUR, Set.of(USD))).thenReturn(List.of(EUR_TO_USD));
@@ -82,8 +71,6 @@ class CurrencyConverterTest {
         assertThat(exchangeRate.toCurrency()).isEqualTo(USD);
         assertThat(exchangeRate.rate()).isEqualByComparingTo("1.1528");
     }
-
-    // ---------- Requerimientos 2 y 7 ----------
 
     @Test
     void testConvertReturnsTheConvertedAmount() {
@@ -113,8 +100,6 @@ class CurrencyConverterTest {
 
         assertThat(result.timestamp()).isEqualTo(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
     }
-
-    // ---------- Requerimiento 5 ----------
 
     @Test
     void testConvertMultipleConvertsToEveryRequestedCurrency() {
@@ -148,18 +133,16 @@ class CurrencyConverterTest {
         assertThat(results).allMatch(result -> result.timestamp().equals(results.getFirst().timestamp()));
     }
 
-    // ---------- Requerimiento 6 ----------
-
     @Test
     void testConvertMultipleOnDateUsesTheRatesOfThatDate() {
         when(this.rateProvider.getExchangeRatesOnDate(eq(EUR), any(), eq(A_PAST_DATE)))
                 .thenReturn(List.of(EUR_TO_USD));
 
-        final var results = this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), A_PAST_DATE);
+        final var results = this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), A_PAST_DATE.atStartOfDay());
 
         assertThat(results).hasSize(1);
         assertThat(results.getFirst().convertedAmount().amount()).isEqualByComparingTo("115.28");
-        assertThat(results.getFirst().date()).isEqualTo(A_PAST_DATE);
+        assertThat(results.getFirst().timestamp()).isEqualTo(A_PAST_DATE.atStartOfDay());
         assertThat(results.getFirst().exchangeRate()).isEqualTo(EUR_TO_USD);
     }
 
@@ -168,13 +151,13 @@ class CurrencyConverterTest {
         when(this.rateProvider.getExchangeRatesOnDate(eq(EUR), any(), eq(TODAY)))
                 .thenReturn(List.of(EUR_TO_USD));
 
-        assertThat(this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), TODAY)).hasSize(1);
+        assertThat(this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), TODAY.atStartOfDay())).hasSize(1);
     }
 
     @Test
     void testConvertMultipleOnDateRejectsAFutureDateWithoutCallingTheProvider() {
         assertThatIllegalArgumentException().isThrownBy(
-                () -> this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), TODAY.plusDays(1)));
+                () -> this.converter.convertMultipleOnDate(ONE_HUNDRED_EUROS, Set.of(USD), TODAY.plusDays(1).atStartOfDay()));
 
         verify(this.rateProvider, never()).getExchangeRatesOnDate(any(), any(), any());
     }
