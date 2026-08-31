@@ -57,22 +57,21 @@ mvn compile exec:java "-Dexec.args=convert 100 USD EUR,JPY"
 mvn compile exec:java "-Dexec.args=convert 100 USD EUR,JPY 2024-11-20"
 ```
 
-| Comando | Descripción |
-|---|---|
-| `currencies` | Lista las monedas soportadas por la API |
-| `rate <origen> <destino>` | Cotización entre dos monedas |
+| Comando                                       | Descripción                                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `currencies`                                  | Lista las monedas soportadas por la API                                            |
+| `rate <origen> <destino>`                     | Cotización entre dos monedas                                                       |
 | `convert <monto> <origen> <destinos> [fecha]` | Convierte a una o varias monedas, opcionalmente en una fecha pasada (`yyyy-MM-dd`) |
 
 ## Estructura
 
-```
+```text
 ar.edu.itba.tp1.exchange
 ├── business/                    ← reglas de negocio, sin dependencias de infraestructura
 │   ├── models/
 │   │   ├── MoneyAmount                  monto + moneda, redondeo a 2 decimales
 │   │   ├── ExchangeRate                 cotización entre dos monedas
-│   │   ├── ConvertedMoneyAmount         conversión con la cotización vigente
-│   │   └── HistoricalConversionResult   conversión con la cotización de una fecha pasada
+│   │   ├── ConversionResult             conversión con la cotización y timestamp
 │   ├── CurrencyRateProvider     ← puerto: qué necesita el negocio
 │   └── CurrencyConverter        ← casos de uso
 ├── providers/                   ← detalles
@@ -97,11 +96,13 @@ revés: ninguna clase de `business` importa Unirest, Gson ni conoce códigos HTT
 - **`ExchangeRate` en lugar de `Map<Currency, BigDecimal>`.** Un `Map` obliga a saber por
   convención qué significa la clave y deja la moneda base fuera del dato. Como record, la
   cotización se explica sola.
-- **`ConvertedMoneyAmount` y `HistoricalConversionResult` separados.** La marca de tiempo
+
+<!-- - **`ConvertedMoneyAmount` y `HistoricalConversionResult` separados.** La marca de tiempo
   significa cosas distintas: en la conversión actual es el momento en que se obtuvo la
   cotización (`LocalDateTime timestamp`), en la histórica es la fecha de vigencia de esa
   cotización (`LocalDate date`). Con un solo record el mismo campo tendría dos semánticas
-  según el método que lo hubiera creado.
+  según el método que lo hubiera creado. -->
+
 - **`BigDecimal` en todo el camino del dinero**, incluido el parseo del JSON. Pasar por
   `double` en cualquier punto pierde precisión aunque el resto del modelo use `BigDecimal`.
 - **Métodos plurales en el puerto.** La API acepta varias monedas en un solo request; el
@@ -111,15 +112,17 @@ revés: ninguna clase de `business` importa Unirest, Gson ni conoce códigos HTT
   y de validación de fechas futuras.
 - **Errores traducidos en el adapter.** El negocio nunca ve un código HTTP: los 4xx/5xx y
   los fallos de red se convierten en excepciones de la jerarquía `CurrencyApiException`.
+- **Separación del currency provider y el cliente HTTP.** Si bien `FreeCurrencyRateProvider`
+  queda ligado al uso de HTTP, la interfaz `HttpClient` permite elegir que librería usar para hacer la llamada (Unirest, OkHttp, etc.) sin tocar el negocio ni el adapter, y facilita el testeo.
 
 ## Funcionalidades
 
-| # | Requerimiento | Dónde |
-|---|---|---|
-| 1 | Listar monedas soportadas | `CurrencyConverter.getSupportedCurrencies()` |
-| 2 | Timestamp de la cotización | `ConvertedMoneyAmount.timestamp()` |
-| 3 | Solo la cotización, sin monto | `CurrencyConverter.getExchangeRate()` |
-| 4 | Manejo de errores de conexión y de la API | `providers/http/exceptions/`, `UnirestHttpClient` |
-| 5 | Convertir a varias monedas a la vez | `CurrencyConverter.convertMultiple()` |
-| 6 | Cotización de una fecha pasada | `CurrencyConverter.convertMultipleOnDate()` |
-| 7 | Ver la cotización usada en la respuesta | `ConvertedMoneyAmount.exchangeRate()` |
+| # | Requerimiento                              | Dónde                                                 |
+| - | ------------------------------------------ | ----------------------------------------------------- |
+| 1 | Listar monedas soportadas                  | `CurrencyConverter.getSupportedCurrencies()`          |
+| 2 | Timestamp de la cotización                 | `ConvertedMoneyAmount.timestamp()`                    |
+| 3 | Solo la cotización, sin monto              | `CurrencyConverter.getExchangeRate()`                 |
+| 4 | Manejo de errores de conexión y de la API  | `providers/http/exceptions/`, `UnirestHttpClient`     |
+| 5 | Convertir a varias monedas a la vez        | `CurrencyConverter.convertMultiple()`                 |
+| 6 | Cotización de una fecha pasada             | `CurrencyConverter.convertMultipleOnDate()`           |
+| 7 | Ver la cotización usada en la respuesta    | `ConvertedMoneyAmount.exchangeRate()`                 |
