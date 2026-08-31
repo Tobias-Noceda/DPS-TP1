@@ -16,6 +16,7 @@ import ar.edu.itba.tp1.exchange.business.CurrencyRateProvider;
 import ar.edu.itba.tp1.exchange.business.models.HistoricalConversionResult;
 import ar.edu.itba.tp1.exchange.business.models.MoneyAmount;
 import ar.edu.itba.tp1.exchange.providers.FreeCurrencyRateProvider;
+import ar.edu.itba.tp1.exchange.providers.http.UnirestHttpClient;
 import ar.edu.itba.tp1.exchange.providers.http.exceptions.CurrencyApiException;
 import ar.edu.itba.tp1.exchange.providers.http.exceptions.CurrencyApiResponseException;
 
@@ -42,7 +43,7 @@ public class Main {
             """;
 
     public static void main(String[] args) {
-        final var rateProvider = new FreeCurrencyRateProvider(apiKeyFromEnvironment());
+        final var rateProvider = new FreeCurrencyRateProvider(apiKeyFromEnvironment(), new UnirestHttpClient());
         final var converter = new CurrencyConverter(rateProvider, Clock.systemDefaultZone());
 
         try {

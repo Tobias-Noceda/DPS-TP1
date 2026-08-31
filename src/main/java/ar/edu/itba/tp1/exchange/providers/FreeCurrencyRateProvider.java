@@ -15,7 +15,6 @@ import ar.edu.itba.tp1.exchange.business.CurrencyRateProvider;
 import ar.edu.itba.tp1.exchange.business.models.ExchangeRate;
 import ar.edu.itba.tp1.exchange.providers.http.HttpApiResponse;
 import ar.edu.itba.tp1.exchange.providers.http.HttpClient;
-import ar.edu.itba.tp1.exchange.providers.http.UnirestHttpClient;
 import ar.edu.itba.tp1.exchange.providers.http.exceptions.CurrencyApiMissingDataException;
 
 public class FreeCurrencyRateProvider implements CurrencyRateProvider {
@@ -26,11 +25,7 @@ public class FreeCurrencyRateProvider implements CurrencyRateProvider {
 	private final HttpClient httpClient;
 	private final Map<String, String> authHeaders;
 
-	public FreeCurrencyRateProvider(final String apiKey) {
-		this(apiKey, new UnirestHttpClient());
-	}
-
-	FreeCurrencyRateProvider(final String apiKey, final HttpClient httpClient) {
+	public FreeCurrencyRateProvider(final String apiKey, final HttpClient httpClient) {
 		this.httpClient = httpClient;
 		this.authHeaders = Map.of(
 				"accept", "application/json",

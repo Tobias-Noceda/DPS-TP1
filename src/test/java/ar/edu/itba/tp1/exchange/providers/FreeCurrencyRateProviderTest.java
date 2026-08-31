@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import ar.edu.itba.tp1.exchange.business.models.ExchangeRate;
 import ar.edu.itba.tp1.exchange.providers.http.HttpApiResponse;
 import ar.edu.itba.tp1.exchange.providers.http.HttpClient;
+import ar.edu.itba.tp1.exchange.providers.http.UnirestHttpClient;
 import ar.edu.itba.tp1.exchange.providers.http.exceptions.CurrencyApiMissingDataException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -167,7 +168,7 @@ class FreeCurrencyRateProviderTest {
 
 	@Test
 	void testThePublicConstructorBuildsAProviderBackedByUnirest() {
-		assertThat(new FreeCurrencyRateProvider("test-key")).isNotNull();
+		assertThat(new FreeCurrencyRateProvider("test-key", new UnirestHttpClient())).isNotNull();
 	}
 
 	private static java.math.BigDecimal rateFor(final java.util.List<ExchangeRate> exchangeRates,
