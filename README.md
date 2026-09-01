@@ -1,118 +1,128 @@
-# Currency Converter — TP1
+# Currency Converter — Trabajo Práctico #1
 
-**Desarrollo de Software Profesional — 2026 — ITBA**
+Desarrollo Profesional de Software (DPS) — ITBA, 2026, 2do cuatrimestre.
 
-Conversor de monedas por consola que consume la API de
-[freecurrencyapi.com](https://freecurrencyapi.com/). Permite listar las monedas soportadas,
-consultar cotizaciones (actuales e históricas) y convertir un monto a una o varias monedas,
-mostrando siempre la cotización usada y la marca de tiempo del dato.
+Extensión del proyecto `CurrencyConverter` visto en clase, integrando la API REST de
+[freecurrencyapi.com](https://freecurrencyapi.com/).
 
----
+## Grupo Alan-Kay
 
-## Cómo correr
+- Matías Romanato
+- Julieta Techenski
+- Valentina Marti Reta
+- Tobías Noceda
+- Matías Sapino
 
-**Requisitos:** JDK 25 y Maven.
+## Requisitos
+
+- **JDK 25** (el build lo verifica con `maven-enforcer-plugin` y falla con cualquier otra versión)
+- Maven 3.9+
+- Una API key de freecurrencyapi.com
+
+## Configuración
+
+La API key se lee de la variable de entorno `FREECURRENCY_API_KEY`. No está en el código:
+una credencial commiteada queda en el historial del repositorio para siempre.
 
 ```bash
-# monedas soportadas
+# Linux / macOS / Git Bash
+export FREECURRENCY_API_KEY=tu_api_key
+
+# PowerShell
+$env:FREECURRENCY_API_KEY="tu_api_key"
+```
+
+Desde IntelliJ: Run → Edit Configurations → campo **Environment variables**.
+
+## Build y tests
+
+```bash
+mvn clean test
+```
+
+Los tests no salen a la red: el adapter se prueba contra un fake de `HttpClient` y
+`UnirestHttpClient` contra un servidor WireMock local. Esto los hace rápidos,
+determinísticos y permite forzar escenarios de error (404, 500, fallo de conexión) que
+contra la API real serían imposibles de reproducir.
+
+Para ver la cobertura desde IntelliJ: botón derecho sobre `src/test/java` →
+More Run/Debug → Run 'All Tests' with Coverage.
+
+## Uso
+
+```bash
 mvn compile exec:java "-Dexec.args=currencies"
-
-# cotizacion entre dos monedas
 mvn compile exec:java "-Dexec.args=rate USD EUR"
-
-# convertir un monto a una o varias monedas
 mvn compile exec:java "-Dexec.args=convert 100 USD EUR,JPY"
-
-# lo mismo, para una fecha pasada
 mvn compile exec:java "-Dexec.args=convert 100 USD EUR,JPY 2024-11-20"
 ```
 
-Sin argumentos (o con un comando desconocido) imprime la ayuda. Salida de ejemplo:
+| Comando                                       | Descripción                                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `currencies`                                  | Lista las monedas soportadas por la API                                            |
+| `rate <origen> <destino>`                     | Cotización entre dos monedas                                                       |
+| `convert <monto> <origen> <destinos> [fecha]` | Convierte a una o varias monedas, opcionalmente en una fecha pasada (`yyyy-MM-dd`) |
 
-```
-$ mvn compile exec:java "-Dexec.args=convert 100 USD EUR,JPY"
-100 USD -> 85.61 EUR (cotizacion: 0.8560581139, obtenida el 2026-08-23T21:20:31)
-100 USD -> 15891.20 JPY (cotizacion: 158.9120211446, obtenida el 2026-08-23T21:20:31)
+## Estructura
 
-$ mvn compile exec:java "-Dexec.args=convert 100 USD EUR,JPY 2024-11-20"
-100 USD -> 94.81 EUR (cotizacion: 0.9480900974, obtenida el 2024-11-20T00:00)
-100 USD -> 15527.21 JPY (cotizacion: 155.2721421669, obtenida el 2024-11-20T00:00)
-```
-
-Los errores (moneda inexistente, monto o fecha mal escritos, fallas de la API o de
-conexión) se informan con un mensaje claro:
-
-```
-$ mvn compile exec:java "-Dexec.args=rate USD XYZ"
-'XYZ' no es un codigo de moneda ISO valido.
-
-$ mvn compile exec:java "-Dexec.args=convert 100 USD EUR 2999-01-01"
-La API respondio con error 422: {"message":"Validation error", ...}
-```
-
-## Cómo correr los tests
-
-```bash
-mvn test
+```text
+ar.edu.itba.tp1.exchange
+├── business/                    ← reglas de negocio, sin dependencias de infraestructura
+│   ├── models/
+│   │   ├── MoneyAmount                  monto + moneda, redondeo a 2 decimales
+│   │   ├── ExchangeRate                 cotización entre dos monedas
+│   │   └── HistoricalConversionResult   conversión, con la cotización usada y su timestamp
+│   ├── CurrencyRateProvider     ← puerto: qué necesita el negocio
+│   └── CurrencyConverter        ← casos de uso
+├── providers/                   ← detalles
+│   ├── http/
+│   │   ├── HttpClient                   interfaz propia de cliente HTTP
+│   │   ├── UnirestHttpClient            implementación con Unirest
+│   │   ├── HttpApiResponse
+│   │   └── exceptions/                  jerarquía de errores de la API
+│   └── FreeCurrencyRateProvider ← adapter contra freecurrencyapi.com
+└── Main                         ← arma el grafo de objetos, CLI
 ```
 
----
+La dirección de las dependencias va siempre de `providers` hacia `business`, nunca al
+revés: ninguna clase de `business` importa Unirest, Gson ni conoce códigos HTTP.
 
-## Estructura del proyecto
+## Decisiones de diseño
 
-```
-src/main/java/ar/edu/itba/tp1/exchange/
-├── Main.java                          Unica clase de presentación: parsea los argumentos, arma
-│                                      las dependencias, invoca al negocio e imprime el resultado
-│
-├── bussiness/                         REGLAS DE NEGOCIO (no conocen HTTP, JSON ni consola)
-│   ├── CurrencyConverter.java             Convierte montos: a una moneda, a varias, y a varias en una fecha
-│   ├── CurrencyRateLookup.java            Consulta monedas soportadas y cotizaciones (sin convertir montos)
-│   ├── CurrencyRateProvider.java          Puerto: lo que el negocio necesita de un proveedor de cotizaciones
-│   └── models/
-│       ├── MoneyAmount.java               Record inmutable: monto + moneda
-│       └── ConvertedMoneyAmount.java      Record inmutable: monto original, convertido, cotización y timestamp
-│
-└── providers/                         DETALLE: implementación contra freecurrencyapi.com
-    ├── FreeCurrencyRateProvider.java      Implementa CurrencyRateProvider: arma los requests y parsea el JSON
-    └── http/
-        ├── HttpClient.java                Abstracción del cliente HTTP (permite testear sin red)
-        ├── UnirestHttpClient.java         Implementación con Unirest + traducción de status codes a excepciones
-        ├── HttpApiResponse.java           Record de la respuesta: status code + body
-        └── exceptions/                    CurrencyApiException y sus especializaciones (conexión, 4xx, 5xx)
+- **`CurrencyRateProvider` como interfaz en el negocio.** El negocio declara qué necesita;
+  `providers` decide cómo obtenerlo. Cambiar de proveedor de cotizaciones no toca `business`.
+- **`HttpClient` propio en lugar de usar Unirest directamente.** Aísla al adapter de la
+  librería HTTP: si se reemplaza Unirest por otra (OkHttp, el HttpClient del JDK), solo
+  cambia `UnirestHttpClient`. Además permite testear el adapter sin salir a la red.
+- **`ExchangeRate` en lugar de `Map<Currency, BigDecimal>`.** Un `Map` obliga a saber por
+  convención qué significa la clave y deja la moneda base fuera del dato. Como record, la
+  cotización se explica sola.
+- **`BigDecimal` en todo el camino del dinero**, incluido el parseo del JSON. Pasar por
+  `double` en cualquier punto pierde precisión aunque el resto del modelo use `BigDecimal`.
+  Se redondea el monto a 2 decimales; la cotización mantiene su precisión completa.
+- **El puerto expone el caso singular y el múltiple.** La API acepta varias monedas en un
+  solo request, así que convertir a N monedas hace **una** llamada HTTP y no N. El caso de
+  una sola moneda tiene su propio método en vez de envolverse en un `Set` de un elemento:
+  así el error "falta la moneda que pedí" es explícito y no un `NoSuchElementException`.
+- **`CurrencyConverter` solo convierte dinero.** Listar las monedas soportadas u obtener una
+  cotización suelta no son conversiones: `Main` se las pide directamente al proveedor.
+  Delegarlas desde el converter habría sido un pasamanos sin comportamiento propio.
+- **`HistoricalConversionResult` se reutiliza para ambos casos.** La conversión con
+  cotización actual y la histórica tienen la misma estructura; el `timestamp` se interpreta
+  según el caso de uso: cuándo se obtuvo la cotización, o la fecha de vigencia consultada.
+- **`Clock` inyectado en `CurrencyConverter`.** Hace determinísticos los tests de timestamp
+  y de validación de fechas futuras.
+- **Errores traducidos en el adapter.** El negocio nunca ve un código HTTP: los 4xx/5xx y
+  los fallos de red se convierten en excepciones de la jerarquía `CurrencyApiException`.
 
-src/test/java/ar/edu/itba/
-├── exchange/CurrencyConverterTest.java                    Negocio: conversiones y lookups (con provider stub)
-└── tp1/exchange/providers/http/
-    ├── UnirestHttpClientTest.java                         Cliente HTTP contra WireMock (200, 404, 500, sin red)
-    └── HttpApiResponseTest.java                           Clasificación de status codes
-```
+## Funcionalidades
 
----
-
-## Funcionalidades → dónde están implementadas
-
-| # | Funcionalidad | Implementación | Test |
-|---|---|---|---|
-| 1 | Listar todas las monedas soportadas | `CurrencyRateLookup.getSupportedCurrencies` → `FreeCurrencyRateProvider.getSupportedCurrencies` | `CurrencyConverterTest.testGetSupportedCurrencies` |
-| 2 | Timestamp de la cotización en la respuesta | Campo `timestamp` de `ConvertedMoneyAmount`, seteado en `CurrencyConverter` | `CurrencyConverterTest.testConvertMultipleOnDate` |
-| 3 | Obtener solo la cotización entre dos monedas | `CurrencyRateLookup.getExchangeRate` | `CurrencyConverterTest.testGetExchangeRate` |
-| 4 | Manejo y notificación clara de errores | `UnirestHttpClient` traduce status codes y fallas de red a `CurrencyApiException`; `Main` las atrapa y muestra el mensaje | `UnirestHttpClientTest` |
-| 5 | Convertir un monto a varias monedas a la vez | `CurrencyConverter.convertMultiple` | `CurrencyConverterTest.testConvertMultiple` |
-| 6 | Cotización de una fecha pasada | `CurrencyConverter.convertMultipleOnDate` → endpoint `/historical` | `CurrencyConverterTest.testConvertMultipleOnDate` |
-| 7 | Ver la cotización usada para cada moneda | Campo `rate` de `ConvertedMoneyAmount`, impreso por `Main.printConversion` | `CurrencyConverterTest.testConvert` |
-
----
-
-## Decisiones de diseño (resumen)
-
-- **El negocio no sabe que existe una API.** `CurrencyConverter` y `CurrencyRateLookup`
-  dependen de la interfaz `CurrencyRateProvider`, que vive en `bussiness`: es el negocio el
-  que define qué necesita, y `providers` el que se adapta.
-- **`HttpClient` es una segunda abstracción**, para poder probar el parseo del JSON y el
-  manejo de status codes sin salir a la red.
-- **Excepciones propias** (`CurrencyApiException` y derivadas): ni el negocio ni `Main`
-  conocen a Unirest.
-- **Modelos inmutables** (`records`) y `BigDecimal` para el dinero, nunca `double`.
-- **`Main` es la única clase de presentación**: parsea argumentos, arma las dependencias e
-  imprime. No tiene reglas de negocio.
+| # | Requerimiento                              | Dónde                                                 |
+| - | ------------------------------------------ | ----------------------------------------------------- |
+| 1 | Listar monedas soportadas                  | `CurrencyRateProvider.getSupportedCurrencies()`       |
+| 2 | Timestamp de la cotización                 | `HistoricalConversionResult.timestamp()`              |
+| 3 | Solo la cotización, sin monto              | `CurrencyRateProvider.getExchangeRate()`              |
+| 4 | Manejo de errores de conexión y de la API  | `providers/http/exceptions/`, `UnirestHttpClient`     |
+| 5 | Convertir a varias monedas a la vez        | `CurrencyConverter.convertMultiple()`                 |
+| 6 | Cotización de una fecha pasada             | `CurrencyConverter.convertMultipleOnDate()`           |
+| 7 | Ver la cotización usada en la respuesta    | `HistoricalConversionResult.exchangeRate()`           |

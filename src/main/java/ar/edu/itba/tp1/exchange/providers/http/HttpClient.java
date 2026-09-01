@@ -1,6 +1,5 @@
 package ar.edu.itba.tp1.exchange.providers.http;
 
-
 import java.util.Map;
 
 public interface HttpClient {
